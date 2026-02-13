@@ -9,7 +9,7 @@ This repository contains the solution for Operating Systems Labs.
 - VMware virtual machine
 - VS Code
 
-## Requirments
+## Requirements
 
 ### Requirement 1 Overview
 
