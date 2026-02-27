@@ -162,8 +162,7 @@ Checks implemented:
 
 Errors printed using:
 - `fprintf(stderr, ...)`
-- `perror(...)`
-- 
+  
 ---
 
 ## 6. 🧩 Key Operating System Concepts Demonstrated
