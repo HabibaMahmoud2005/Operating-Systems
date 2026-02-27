@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 
 int main(int argc , char* argv[])
@@ -20,7 +19,7 @@ int main(int argc , char* argv[])
     if(fptr == NULL)
     {
         fprintf(stderr,"File doesn't exist\n");
-        exit(1);
+        return 1;
     }
 
     int orders;
@@ -28,7 +27,7 @@ int main(int argc , char* argv[])
 
     int *total = malloc(orders * sizeof(int));
     if(total == NULL)
-        exit(1);
+        return 1;
 
     for(int i = 0 ; i < orders ; i++)
     {
@@ -51,8 +50,8 @@ int main(int argc , char* argv[])
 
         if(pid == -1)
         {
-            perror("fork failed");
-            exit(1);
+            fprintf(stderr,"fork failed\n");
+            return 1;
         }
 
         if(pid == 0)
