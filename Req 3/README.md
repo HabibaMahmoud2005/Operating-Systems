@@ -193,7 +193,7 @@ Important:
 To validate bounds, we implemented:
 
 ```c
-int count_lines(constchar*filename)
+int count_lines(const char* filename)
 ```
 
 Logic:
