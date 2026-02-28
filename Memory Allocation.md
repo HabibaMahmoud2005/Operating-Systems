@@ -14,8 +14,8 @@ Memory automatically allocated for **local (non-static) variables** inside funct
 ### Example
 
 ```c
-voidfunc() {
-intx=10;// stack memory
+void func() {
+int x=10;// stack memory
 }
 ```
 
@@ -52,10 +52,10 @@ Memory allocated for:
 ### Example
 
 ```c
-intglobalVar=5;// static memory
+int global Var=5;// static memory
 
-voidfunc() {
-staticintcount=0;// static memory
+void func() {
+static int count=0;// static memory
 }
 ```
 
