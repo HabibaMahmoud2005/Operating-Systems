@@ -1,4 +1,4 @@
-# Lab 4 — File Search Using Processes and Signals
+# File Search Using Processes and Signals
 
 ## Overview
 
