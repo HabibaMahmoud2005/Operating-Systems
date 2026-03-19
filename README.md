@@ -1,6 +1,6 @@
 # Operating Systems Labs
 
-This repository contains the solution for Operating Systems Labs.
+This repository contains the solution for **Operating Systems** Labs with notes.
 
 ## Technologies Used
 
