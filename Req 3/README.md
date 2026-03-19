@@ -1,6 +1,6 @@
 # 📘 SubTool – Subtitle File Processing Utility
 
-## 1. 📌 Problem Statement
+## 1. Problem Statement
 
 The objective of this assignment is to implement a command-line utility in C named `sub_tool` that processes subtitle files (.srt).
 
@@ -16,7 +16,7 @@ The program must:
 
 ---
 
-# 2. ⚙ Functional Requirements
+# 2. Functional Requirements
 
 The tool supports the following flags:
 
@@ -33,7 +33,7 @@ The tool supports the following flags:
 
 ---
 
-# 3. 🏗 Program Architecture
+# 3. Program Architecture
 
 The project is divided into:
 
@@ -57,7 +57,7 @@ This modular design improves maintainability and readability.
 
 ---
 
-# 4. 🧠 Core C Concepts Used
+# 4. Core C Concepts Used
 
 ## 4.1 File Handling
 
@@ -134,7 +134,7 @@ Used when overwriting original file after editing.
 
 ---
 
-# 5. 🔁 Editing Strategy (Important Design Choice)
+# 5. Editing Strategy (Important Design Choice)
 
 When editing or inserting:
 
@@ -155,7 +155,7 @@ This approach prevents file corruption.
 
 ---
 
-# 6. ❗ Error Handling Strategy
+# 6. Error Handling Strategy
 
 We implemented:
 
@@ -188,7 +188,7 @@ Important:
 
 ---
 
-# 7. 🧮 Counting Lines
+# 7. Counting Lines
 
 To validate bounds, we implemented:
 
@@ -210,7 +210,7 @@ Used before performing:
 
 ---
 
-# 8. 🛠 Makefile
+# 8. Makefile
 
 The Makefile automates compilation:
 
@@ -242,7 +242,7 @@ make clean
 
 ---
 
-# 9. 🧪 Testing
+# 9. Testing
 
 Tested using:
 
