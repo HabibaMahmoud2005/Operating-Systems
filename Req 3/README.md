@@ -1,6 +1,6 @@
 # 📘 SubTool – Subtitle File Processing Utility
 
-## 1. Problem Statement
+# 1. Problem Statement
 
 The objective of this assignment is to implement a command-line utility in C named `sub_tool` that processes subtitle files (.srt).
 
