@@ -134,7 +134,7 @@ Used when overwriting original file after editing.
 
 ---
 
-# 5. Editing Strategy (Important Design Choice)
+# 5. Editing Strategy
 
 When editing or inserting:
 
