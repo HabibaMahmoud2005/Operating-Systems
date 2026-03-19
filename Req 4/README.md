@@ -1,6 +1,6 @@
 # 📘 Multi-Process Order Processing System
 
-## 1. 📌 Problem Statement
+## 1. Problem Statement
 
 The objective of this assignment is to implement a multi-process C program that simulates a food delivery platform.
 
@@ -20,7 +20,7 @@ The program must:
 
 ---
 
-## 2. ⚙ Functional Requirements
+## 2. Functional Requirements
 
 ### Command-Line Format
 
@@ -88,7 +88,7 @@ Where:
 
 ---
 
-## 3. 🧠 Core C Concepts Used
+## 3. Core C Concepts Used
 
 ### File Handling
 Functions used:
@@ -135,7 +135,7 @@ wait(&status);
 
 ---
 
-## 4. 🔁 Dispatcher Logic
+## 4. Dispatcher Logic
 
 ```
 start = i * base_batch_size;
@@ -153,7 +153,7 @@ Each child:
 
 ---
 
-## 5. ❗ Error Handling Strategy
+## 5. Error Handling Strategy
 
 Checks implemented:
 - Invalid argument count
@@ -165,7 +165,7 @@ Errors printed using:
   
 ---
 
-## 6. 🧩 Key Operating System Concepts Demonstrated
+## 6. Key Operating System Concepts Demonstrated
 
 - Process creation
 - Process hierarchy
