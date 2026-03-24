@@ -5,106 +5,95 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <signal.h>
 
-/* message buffer for msgsnd and msgrcv calls */
+/* message buffer */
 struct msgbuf {
-    long mtype;              /* type of message */
-    char mtext[256];         /* message text */
+    long mtype;
+    int client_id;
+    char mtext[256];
 };
 
 int main()
 {
-    key_t Wkey_id = ftok("keyFile", 65);
-    key_t Vkey_id = ftok("keyFile", 75);
+    key_t Wkey = ftok("keyFile", 65);
+    key_t Vkey = ftok("keyFile", 75);
 
-    int WordsQueue_id = msgget(Wkey_id, IPC_CREAT | 0666);
-    int VowelsQueue_id = msgget(Vkey_id, IPC_CREAT | 0666);
+    int WordsQueue_id = msgget(Wkey,0666);
+    int VowelsQueue_id = msgget(Vkey,0666);
 
-    if (WordsQueue_id == -1)
+    if (WordsQueue_id == -1 || VowelsQueue_id == -1)
     {
-        perror("Error in Words Queue");
-        exit(-1);
+        perror("Error connecting to queues");
+        exit(1);
     }
 
-    if (VowelsQueue_id == -1)
+    while (1)
     {
-        perror("Error in Vowels Queue");
-        exit(-1);
-    }
-while(1){
-    char sentence[256];
-    int choice;
+        int choice;
+        char sentence[256];
+        printf("CHOOSE:");
+        printf("\n1. Count Words\n2. Count Vowels\nChoice: ");
+        scanf("%d", &choice);
+        getchar(); // clear buffer
 
-    printf("Choose service:\n");
-    printf("1. Count Words\n");
-    printf("2. Count Vowels\n");
-    printf("Enter choice: ");
-    scanf("%d", &choice);
-
-    getchar(); // clear buffer
-
-    printf("Enter a sentence: ");
-    fgets(sentence, sizeof(sentence), stdin);
-    sentence[strcspn(sentence, "\n")] = '\0';
-
-    if (choice != 1 && choice != 2)
-    {
-        printf("Invalid Input\n");
-        exit(-1);
-    }
-
-    struct msgbuf buf;
-    int client_id = getpid() % 10000;
-
-    buf.mtype = client_id;
-    strcpy(buf.mtext, sentence);
-
-    if (choice == 1)
-    {
-        // send to WORDS queue
-        int SENDstatus = msgsnd(WordsQueue_id, &buf, sizeof(buf.mtext), !IPC_NOWAIT);
-
-        if (SENDstatus == -1)
+        if (choice != 1 && choice != 2)
         {
-            perror("Sending Through Words Queue Failed\n");
-            exit(-1);
+            printf("Invalid choice\n");
+            continue;
         }
 
-        // receive result
-        int RCVstatus = msgrcv(WordsQueue_id, &buf, sizeof(buf.mtext), client_id, !IPC_NOWAIT);
+        printf("Enter sentence: ");
+        fgets(sentence, sizeof(sentence), stdin);
+        sentence[strcspn(sentence, "\n")] = '\0';
 
-        if (RCVstatus == -1)
+        struct msgbuf buf;
+        int client_id = getpid() % 10000;
+
+        buf.client_id = client_id;
+        buf.mtype = 1;
+        strcpy(buf.mtext, sentence);
+
+        if (choice == 1)
         {
-            perror("Receiving Through Words Queue Failed\n");
-            exit(-1);
-        }
+            int SENDstatus = msgsnd(WordsQueue_id, &buf, sizeof(buf) - sizeof(long), !IPC_NOWAIT);
 
-        printf("Result: %s\n", buf.mtext);
+            if (SENDstatus == -1)
+            {
+                perror("Sending Through Words Queue Failed");
+                exit(1);
+            }
+
+            int RCVstatus = msgrcv(WordsQueue_id, &buf, sizeof(buf) - sizeof(long), client_id, !IPC_NOWAIT);
+
+            if (RCVstatus == -1)
+            {
+                perror("Receiving Through Words Queue Failed");
+                exit(1);
+            }
+
+            printf("Word Count: %s\n", buf.mtext);
+        }
+        else if (choice == 2)
+        {
+            int SENDstatus = msgsnd(VowelsQueue_id, &buf, sizeof(buf) - sizeof(long), !IPC_NOWAIT);
+
+            if (SENDstatus == -1)
+            {
+                perror("Sending Through Vowels Queue Failed");
+                exit(1);
+            }
+
+            int RCVstatus = msgrcv(VowelsQueue_id, &buf, sizeof(buf) - sizeof(long), client_id, !IPC_NOWAIT);
+
+            if (RCVstatus == -1)
+            {
+                perror("Receiving Through Vowels Queue Failed");
+                exit(1);
+            }
+
+            printf("Vowel Count: %s\n", buf.mtext);
+        }
     }
-    else if (choice == 2)
-    {
-        // send to VOWELS queue
-        int SENDstatus = msgsnd(VowelsQueue_id, &buf, sizeof(buf.mtext), !IPC_NOWAIT);
-
-        if (SENDstatus == -1)
-        {
-            perror("Sending Through Vowels Queue Failed\n");
-            exit(-1);
-        }
-
-        // receive result
-        int RCVstatus = msgrcv(VowelsQueue_id, &buf, sizeof(buf.mtext), client_id, !IPC_NOWAIT);
-
-        if (RCVstatus == -1)
-        {
-            perror("Receiving Through Vowels Queue Failed\n");
-            exit(-1);
-        }
-
-        printf("Result: %s\n", buf.mtext);
-    }
-}
 
     return 0;
 }

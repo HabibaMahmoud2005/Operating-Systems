@@ -2,96 +2,84 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/file.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
 
-/* arg for semctl system calls. */
-union Semun 
-{
-    int val;               /* Value for SETVAL */
-    struct semid_ds *buf;  /* Buffer for IPC_STAT, IPC_SET */
-    unsigned short *array; /* Array for GETALL, SETALL */
-    struct seminfo *__buf; /* Buffer for IPC_INFO (Linux-specific) -> gives system-wide semaphore configuration / limits on Linux like max number of semaphores */
-};
-
 struct shared_data {
     int client_id;
-    int choice;       // 1 = words, 2 = vowels
+    int choice;
     char text[256];
     int result;
 };
 
-void sem_op(int sem_id, int sem_num, int op_val)
-{
-    struct sembuf op;
-    op.sem_num = sem_num;
-    op.sem_op = op_val;
-    op.sem_flg = !IPC_NOWAIT;
-
-    if (semop(sem_id, &op, 1) == -1)
-    {
-        perror("semop failed");
-        exit(-1);
-    }
-}
-
-
 int main()
 {
-    key_t shm_key = ftok("keyFile",65);
-    key_t sem_key = ftok("keyFile",75);
+    key_t shm_key = ftok("keyFile", 65);
+    key_t sem_key = ftok("keyFile", 75);
 
-    int shm_id = shmget(shm_key,sizeof(struct  shared_data),IPC_CREAT | 0666);
-    if(shm_id == -1){
-        perror("Error in Shared Memory\n");
-        exit(-1);
-    }
+    int shm_id = shmget(shm_key, sizeof(struct shared_data), 0666);
+    int sem_id = semget(sem_key, 3, 0666);
 
-    int sem_id = semget(sem_key,2,IPC_CREAT | 0666);
-    if(sem_id == -1){
-        perror("Error in Semaphore\n");
+    if (shm_id == -1 || sem_id == -1)
+    {
+        printf("Error in Connection\n");
+        exit(1);
     }
 
     struct shared_data *data = (struct shared_data *) shmat(shm_id, NULL, 0);
-    if (data == (void *) -1)
+
+    while (1)
     {
-        perror("Error in shmat");
-        exit(-1);
+        int choice;
+        char sentence[256];
+        printf("CHOOSE:");
+        printf("\n1. Count Words\n2. Count Vowels\nChoice: ");
+        scanf("%d", &choice);
+        getchar();
+
+        if (choice != 1 && choice != 2)
+        {
+            printf("Invalid choice\n");
+            continue;
+        }
+
+        printf("Enter sentence: ");
+        fgets(sentence, sizeof(sentence), stdin);
+        sentence[strcspn(sentence, "\n")] = '\0';
+
+        if (semctl(sem_id, 0, GETVAL) == -1)
+        {
+            printf("Failure in Communication\n");
+            exit(1);
+        }
+
+        // lock mutex
+        struct sembuf lock = {0, -1, 0};
+        semop(sem_id, &lock, 1);
+
+        // write request
+        data->client_id = getpid();
+        data->choice = choice;
+        strcpy(data->text, sentence);
+
+        // notify server
+        struct sembuf signal_req = {1, 1, 0};
+        semop(sem_id, &signal_req, 1);
+
+        // wait for response
+        struct sembuf wait_res = {2, -1, 0};
+        if (semop(sem_id, &wait_res, 1) == -1)
+        {
+            perror("Waiting for response failed (server may be down)");
+            exit(1);
+        }
+
+        // read result
+        printf("Result = %d\n", data->result);
+
+        // unlock mutex
+        struct sembuf unlock = {0, 1, 0};
+        semop(sem_id, &unlock, 1);
     }
-
-
-    char sentence[sizeof(data->text)];
-    int choice;
-    printf("Choose service:\n");
-    printf("1. Count Words\n");
-    printf("2. Count Vowels\n");
-    printf("Enter choice: ");
-    scanf("%d", &choice);
-
-    getchar(); // clear buffer
-
-    printf("Enter a sentence: ");
-    fgets(sentence, sizeof(sentence), stdin);
-    sentence[strcspn(sentence, "\n")] = '\0';
-
-    if (choice != 1 && choice != 2)
-    {
-        printf("Invalid Input\n");
-        exit(-1);
-    }
-
-    data->client_id = getpid() % 10000;
-    data->choice = choice;
-    strcpy(data->text, sentence);
-
-    sem_op(sem_id,0,1);
-    sem_op(sem_id,1,-1);
-
-    printf("Result = %d\n", data->result);
-
-    return 0;
 }

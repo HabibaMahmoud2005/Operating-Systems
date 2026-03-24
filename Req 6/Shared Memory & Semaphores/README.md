@@ -1,270 +1,97 @@
-# Shared Memory & Semaphores (Client–Server IPC)
+# Shared Memory & Semaphores Client–Server System
 
 ## Overview
 
 This program demonstrates **inter-process communication (IPC)** using:
 
-- **Shared Memory** → for data exchange
-- **Semaphores** → for synchronization
+- **Shared Memory**
+- **System V Semaphores**
 
-The system follows a **client–server architecture**:
+The system consists of:
 
-- The **client** sends a request (text + operation)
-- The **server** processes the request
-- The **server writes the result back**
-- The **client reads the result**
+- A **client process** that sends requests
+- A **server process** that processes the request and returns results
 
-## Program Architecture
+The client can request:
+
+1. **Word count**
+2. **Vowel count**
+
+The client writes data into shared memory, signals the server, and waits for the response.
+
+# System Architecture
+
+The system uses **shared memory + 3 semaphores**:
 
 ```
         Client Process
+              |
+       (writes request)
               ↓
-      [Shared Memory]
+      Shared Memory Segment
               ↑
+       (writes result)
+              |
         Server Process
 ```
 
-### Responsibilities
+# Key Concepts
 
-| Process | Responsibility |
-| --- | --- |
-| Client | Takes user input and sends request |
-| Server | Processes request and returns result |
+| Concept                 | Description                             |
+| ----------------------- | --------------------------------------- |
+| Shared Memory           | Fast IPC using `shmget`, `shmat`        |
+| Semaphores              | Synchronization using `semget`, `semop` |
+| Mutual Exclusion        | Prevent race conditions                 |
+| Process Synchronization | Request/response coordination           |
+| Multi-client Handling   | Safe concurrent access                  |
+| Signal Handling         | Resource cleanup                        |
 
-## Data Structure
-
-The shared memory uses a structured format:
+# Shared Memory Structure
 
 ```c
 struct shared_data {
 int client_id;
-int choice;// 1 = words, 2 = vowels
+int choice;
 char text[256];
 int result;
 };
 ```
 
-### Field Description
+### Fields
 
-| Field | Description |
-| --- | --- |
-| `client_id` | Unique ID (last 4 digits of PID) |
-| `choice` | Operation requested |
-| `text` | Input sentence |
-| `result` | Computed result |
+| Field       | Description           |
+| ----------- | --------------------- |
+| `client_id` | PID of client         |
+| `choice`    | 1 = Words, 2 = Vowels |
+| `text`      | Input sentence        |
+| `result`    | Computed result       |
 
-## Keys and IPC Objects
+# Semaphore Design
 
-Both client and server use:
+We use **3 semaphores**:
 
-```c
-ftok("keyFile",65);  // shared memory
-ftok("keyFile",75);  // semaphores
-```
+| Index | Name     | Purpose                |
+| ----- | -------- | ---------------------- |
+| 0     | Mutex    | Protect shared memory  |
+| 1     | Request  | Client → Server signal |
+| 2     | Response | Server → Client signal |
 
-This ensures **both processes access the same IPC resources**.
-
-## Semaphores Design
-
-Two semaphores are used:
-
-| Semaphore | Purpose |
-| --- | --- |
-| `sem[0]` | Client → Server notification |
-| `sem[1]` | Server → Client notification |
-
-## Synchronization Flow
-
-### Step-by-step execution:
-
-### 1. Client writes data
-
-```c
-data->client_id = getpid()%10000;
-data->choice = choice;
-strcpy(data->text,sentence);
-```
-
-### 2. Client signals server
-
-```c
-sem_op(sem_id,0,1);
-```
-
-Meaning:
-
-> "Server, I placed a request"
-> 
-
-### 3. Server waits for request
-
-```c
-sem_op(sem_id,0,-1);
-```
-
-Meaning:
-
-> Server blocks until client sends data
-> 
-
-### 4. Server processes request
-
-Depending on `choice`:
-
-- `1` → count words
-- `2` → count vowels
-
-### 5. Server writes result
-
-```c
-data->result = result;
-```
-
-### 6. Server signals client
-
-```c
-sem_op(sem_id,1,1);
-```
-
-Meaning:
-
-> "Client, your result is ready"
-> 
-
-### 7. Client waits for result
-
-```c
-sem_op(sem_id,1,-1);
-```
-
-### 8. Client reads result
-
-```c
-printf("Result = %d\n",data->result);
-```
-
-## Semaphore Operation Function
-
-Helper function:
-
-```c
-void sem_op(int sem_id,int sem_num,int op_val)
-```
-
-### Parameters
-
-| Parameter | Meaning |
-| --- | --- |
-| `sem_id` | Semaphore set ID |
-| `sem_num` | Which semaphore (0 or 1) |
-| `op_val` | Operation (+1 or -1) |
-
-## Server Initialization
-
-The server initializes semaphores:
-
-```c
-union Semun semun;
-semun.val=0;
-
-semctl(sem_id,0,SETVAL,semun);
-semctl(sem_id,1,SETVAL,semun);
-```
-
-### Why?
-
-To ensure:
+# Communication Flow
 
 ```
-Initial state = blocked
+Client:
+    Lock mutex
+    Write data to shared memory
+    Signal request semaphore
+
+Server:
+    Wait for request
+    Process data
+    Write result
+    Signal response
+
+Client:
+    Wait for response
+    Read result
+    Unlock mutex
 ```
-
-So processes synchronize correctly.
-
-## Processing Logic
-
-### Count Vowels
-
-```c
-int count_vowels(const char*str)
-```
-
-Counts:
-
-```
-a, e, i, o, u (case-insensitive)
-```
-
-### Count Words
-
-```c
-int count_words(const char*str)
-```
-
-Logic:
-
-- Count transitions from space → non-space
-- Tracks `in_word` state
-
-## Example Execution
-
-### Client Input
-
-```
-Choice: 2
-Sentence: hello world
-```
-
-### Server Processing
-
-```
-Vowels = 3
-```
-
-### Output
-
-```
-Result = 3
-```
-
-## Compilation
-
-```bash
-gcc server.c -o server
-gcc client.c -o client
-```
-
----
-
-## Execution
-
-Run server first:
-
-```bash
-./server
-```
-
-Then client:
-
-```bash
-./client
-```
-
-## Key Concepts Demonstrated
-
-| Concept | Description |
-| --- | --- |
-| Shared Memory | Fast IPC mechanism |
-| Semaphores | Process synchronization |
-| Client–Server Model | Task distribution |
-| Blocking Mechanism | Controlled execution order |
-| IPC Keys (`ftok`) | Resource identification |
-
-## Important Notes
-
-- Server must start **before client**
-- Both must use the **same key file**
-- Semaphore initialization should be done **only once (by server)**
-- Missing synchronization leads to:
-    - Race conditions
-    - Incorrect results
