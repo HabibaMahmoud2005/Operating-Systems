@@ -2,55 +2,40 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/file.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
+#include <signal.h>
 
-/* arg for semctl system calls. */
-union Semun 
-{
-    int val;               /* Value for SETVAL */
-    struct semid_ds *buf;  /* Buffer for IPC_STAT, IPC_SET */
-    unsigned short *array; /* Array for GETALL, SETALL */
-    struct seminfo *__buf; /* Buffer for IPC_INFO (Linux-specific) -> gives system-wide semaphore configuration / limits on Linux like max number of semaphores */
+union Semun {
+    int val;
 };
 
 struct shared_data {
     int client_id;
-    int choice;       // 1 = words, 2 = vowels
+    int choice;
     char text[256];
     int result;
 };
 
-void sem_op(int sem_id, int sem_num, int op_val)
+int shm_id, sem_id;
+struct shared_data *data;
+
+void SIG_HANDLER(int signum)
 {
-    struct sembuf op;
-    op.sem_num = sem_num;
-    op.sem_op = op_val;
-    op.sem_flg = !IPC_NOWAIT;
-
-    if (semop(sem_id, &op, 1) == -1)
-    {
-        perror("semop failed");
-        exit(-1);
-    }
+    shmctl(shm_id, IPC_RMID, NULL);
+    semctl(sem_id, 0, IPC_RMID);
+    printf("\nServer terminated. Resources cleaned.\n");
+    exit(0);
 }
-
 
 int count_vowels(const char *str)
 {
     int count = 0;
     while (*str)
     {
-        char c = *str;
-        if (c=='a'||c=='e'||c=='i'||c=='o'||c=='u'||
-            c=='A'||c=='E'||c=='I'||c=='O'||c=='U')
-        {
+        if (strchr("aeiouAEIOU", *str))
             count++;
-        }
         str++;
     }
     return count;
@@ -58,19 +43,16 @@ int count_vowels(const char *str)
 
 int count_words(const char *str)
 {
-    int count = 0;
-    int in_word = 0;
+    int count = 0, in_word = 0;
     while (*str)
     {
-        if (*str != ' ' && in_word == 0)
+        if (*str != ' ' && !in_word)
         {
             count++;
             in_word = 1;
         }
         else if (*str == ' ')
-        {
             in_word = 0;
-        }
         str++;
     }
     return count;
@@ -78,47 +60,66 @@ int count_words(const char *str)
 
 int main()
 {
-    key_t shm_key = ftok("keyFile",65);
-    key_t sem_key = ftok("keyFile",75);
+    key_t shm_key = ftok("keyFile", 65);
+    key_t sem_key = ftok("keyFile", 75);
 
-    int shm_id = shmget(shm_key,sizeof(struct  shared_data),IPC_CREAT | 0666);
-    if(shm_id == -1){
-        perror("Error in Shared Memory\n");
+    shm_id = shmget(shm_key, sizeof(struct shared_data), IPC_CREAT | 0666);
+    sem_id = semget(sem_key, 3, IPC_CREAT | 0666);
+
+     if (shm_id == -1) {
+        perror("shmget");
         exit(-1);
     }
 
-    int sem_id = semget(sem_key,2,IPC_CREAT | 0666);
-    if(sem_id == -1){
-        perror("Error in Semaphore\n");
+    if (sem_id == -1) {
+        perror("semget");
+        exit(-1);
     }
 
     union Semun semun;
-    semun.val = 0;
 
-    // initialize BOTH semaphores
+    // Initialize mutex
+    semun.val = 1;
     semctl(sem_id, 0, SETVAL, semun);
+
+    // Initialize request
+    semun.val = 0;
     semctl(sem_id, 1, SETVAL, semun);
 
-    struct shared_data *data = (struct shared_data *) shmat(shm_id, NULL, 0);
-    if (data == (void *) -1)
-    {
-        perror("Error in shmat");
+    // Initialize response
+    semun.val = 0;
+    semctl(sem_id, 2, SETVAL, semun);
+
+    data = (struct shared_data *) shmat(shm_id, NULL, 0);
+    if (data == (void *) -1) {
+        perror("shmat");
         exit(-1);
     }
 
-    while(1){
-        sem_op(sem_id,0,-1);
 
-        int result;
+    signal(SIGINT, SIG_HANDLER);
+
+    printf("Server started...\n");
+    //sleep(25);
+    sleep(10);
+
+    while (1)
+    {
+        // wait for request
+        struct sembuf wait_req = {1, -1, 0};
+        semop(sem_id, &wait_req, 1);
+
+        // process
         if (data->choice == 1)
-            result = count_words(data->text);
+            data->result = count_words(data->text);
         else
-            result = count_vowels(data->text);
+            data->result = count_vowels(data->text);
 
-        data->result = result;
+        // signal response
+        struct sembuf signal_res = {2, 1, 0};
+        semop(sem_id, &signal_res, 1);
 
-        sem_op(sem_id,1,1);
+        //sleep(7);
+        sleep(3);
     }
-    
-    return 0;
 }
