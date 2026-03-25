@@ -13,6 +13,16 @@ struct shared_data {
     int result;
 };
 
+struct shared_data *data;
+
+void SIG_HANDLER(int signum)
+{
+    if (data != (void *) -1)
+        shmdt(data);
+
+    exit(0);
+}
+
 int main()
 {
     key_t shm_key = ftok("keyFile", 65);
@@ -27,7 +37,7 @@ int main()
         exit(1);
     }
 
-    struct shared_data *data = (struct shared_data *) shmat(shm_id, NULL, 0);
+    data = (struct shared_data *) shmat(shm_id, NULL, 0);
 
     while (1)
     {
@@ -55,7 +65,7 @@ int main()
         }
 
         // lock mutex
-        struct sembuf lock = {0, -1, 0};
+        struct sembuf lock = {0, -1, SEM_UNDO};
         semop(sem_id, &lock, 1);
 
         // write request
@@ -79,7 +89,7 @@ int main()
         printf("Result = %d\n", data->result);
 
         // unlock mutex
-        struct sembuf unlock = {0, 1, 0};
+        struct sembuf unlock = {0, 1, SEM_UNDO};
         semop(sem_id, &unlock, 1);
     }
 }
